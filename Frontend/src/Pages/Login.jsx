@@ -6,6 +6,9 @@ import BackgroundSvg from "../images/117.svg";
 import "../../src/index.css";
 import WelcomeOverlay from "../components/WelcomeOverlay";
 
+// Dynamic API Base URL (Render in Production, Localhost in dev)
+const API_BASE = import.meta.env.VITE_API_URL || "https://smart-agriguard-mern.onrender.com";
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -32,12 +35,12 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    // Endpoints fallback array matching the confirmed user backend route
+    // Dynamic endpoints targeting Render backend
     const endpoints = [
-      'http://localhost:5557/api/user/login',
-      'http://localhost:5557/api/auth/login',
-      'http://localhost:5557/user/login',
-      'http://localhost:5557/auth/login'
+      `${API_BASE}/api/user/login`,
+      `${API_BASE}/api/auth/login`,
+      `${API_BASE}/user/login`,
+      `${API_BASE}/auth/login`
     ];
 
     try {
@@ -49,6 +52,11 @@ const Login = () => {
           response = await axios.post(url, {
             email: formData.email.trim().toLowerCase(),
             password: formData.password
+          }, {
+            headers: {
+              "Content-Type": "application/json"
+            },
+            withCredentials: true
           });
           if (response && (response.status === 200 || response.status === 201)) {
             break;
@@ -93,7 +101,6 @@ const Login = () => {
               navigate('/materials');
               break;  
             default:
-              // Directs users to the standard landing homepage
               window.location.href = '/';
           }
         }, 1500);
@@ -145,7 +152,7 @@ const Login = () => {
               id="email"
               name="email"
               type="email"
-              placeholder="e.g. shivamgangwarbda51@gmail.com"
+              placeholder="e.g. your-email@gmail.com"
               value={formData.email}
               onChange={handleChange}
               required
