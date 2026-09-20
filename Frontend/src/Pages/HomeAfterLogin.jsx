@@ -97,7 +97,7 @@ const HomeAfterLogin = () => {
     fetchMaterials();
   }, []);
 
-  // Cleanup camera stream when component unmounts
+  // Cleanup camera stream on unmount
   useEffect(() => {
     return () => {
       stopCamera();
@@ -168,23 +168,24 @@ const HomeAfterLogin = () => {
     }
   };
 
-  const getTreatmentData = (detectedName) => {
-    const nameLower = detectedName.toLowerCase();
+  const getTreatmentData = (detectedName, backendData = null) => {
+    const nameLower = (detectedName || "").toLowerCase();
     for (const [key, data] of Object.entries(diseaseTreatments)) {
       if (nameLower.includes(key.toLowerCase()) || nameLower.includes(data.matchKeyword.toLowerCase())) {
         return { key, ...data };
       }
     }
     return {
-      key: detectedName,
-      scientific: 'Pathogen identified via computer vision',
-      organic: 'Apply cold-pressed neem oil (3ml/L) and broad-spectrum bio-fungicide.',
-      chemical: 'Apply Mancozeb or Copper Oxychloride according to label dosage.',
-      preventive: 'Quarantine infected plants. Ensure proper drainage and air circulation.',
+      key: detectedName || "Identified Crop Condition",
+      scientific: backendData?.symptoms?.[0] || 'Pathogen identified via Gemini AI Computer Vision',
+      organic: (backendData?.treatment && backendData.treatment[0]) || 'Apply cold-pressed neem oil (3ml/L) and bio-fungicides.',
+      chemical: (backendData?.treatment && backendData.treatment[1]) || 'Apply Mancozeb or Copper Oxychloride according to label dosage.',
+      preventive: (backendData?.prevention && backendData.prevention[0]) || 'Ensure proper drainage and maintain canopy ventilation.',
       matchKeyword: 'General'
     };
   };
 
+  // Submit image to real Gemini AI backend endpoint
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!image) return;
@@ -193,71 +194,36 @@ const HomeAfterLogin = () => {
     setPrediction(null);
     setActiveTreatment(null);
 
-    let detectedDisease = null;
+    const formData = new FormData();
+    formData.append("image", image);
 
-    // 1. Try local Python ML model if available
     try {
-      const formData = new FormData();
-      formData.append('file', image);
-      const response = await axios.post('http://localhost:5000/predict', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 3000
+      const response = await axios.post(`${API_BASE}/api/disease/detect`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      if (response.data?.predicted_label) {
-        detectedDisease = response.data.predicted_label;
+
+      if (response.data && response.data.success) {
+        const aiData = response.data.data;
+        const diseaseName = aiData.diseaseName || "Healthy Leaf";
+        setPrediction(diseaseName);
+
+        const treatmentInfo = getTreatmentData(diseaseName, aiData);
+        setActiveTreatment(treatmentInfo);
+      } else {
+        alert("Failed to analyze image: " + (response.data?.message || "Server issue"));
       }
-    } catch {
-      // Python model offline
+    } catch (err) {
+      console.error("AI Detection Error:", err.response?.data || err);
+      alert("Error connecting to AI Server. Please ensure backend is awake.");
+    } finally {
+      setLoading(false);
+      setShowScanModal(false);
+      stopCamera();
+
+      setTimeout(() => {
+        treatmentRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
     }
-
-    // 2. Try Cloud API if local is offline
-    if (!detectedDisease) {
-      try {
-        const base64Data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(image);
-          reader.onload = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = reject;
-        });
-
-        const response = await axios.post(
-          'https://crop.kindwise.com/api/v1/identification',
-          { images: [base64Data] },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Api-Key': 'w9dI5ltIik0SAYqj4soymqYV2zMsiY6VsqxnpMhlXWS1OjcSSj'
-            },
-            timeout: 6000
-          }
-        );
-        detectedDisease = response.data?.result?.disease?.suggestions?.[0]?.name;
-      } catch {
-        // Diagnostic fallback
-      }
-    }
-
-    // 3. Robust inference fallback
-    if (!detectedDisease) {
-      const fileName = image.name.toLowerCase();
-      if (fileName.includes('anthracnose')) detectedDisease = 'Anthracnose';
-      else if (fileName.includes('blight')) detectedDisease = 'Early Blight';
-      else if (fileName.includes('rust')) detectedDisease = 'Common Rust';
-      else if (fileName.includes('mildew')) detectedDisease = 'Powdery Mildew';
-      else detectedDisease = 'Bacterial Leaf Spot';
-    }
-
-    setPrediction(detectedDisease);
-    const treatmentInfo = getTreatmentData(detectedDisease);
-    setActiveTreatment(treatmentInfo);
-
-    setLoading(false);
-    setShowScanModal(false);
-    stopCamera();
-
-    setTimeout(() => {
-      treatmentRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 400);
   };
 
   const handleRetry = () => {
@@ -741,14 +707,14 @@ const HomeAfterLogin = () => {
                       <span className="text-[10px] text-emerald-600 mt-0.5">Take photo now</span>
                     </button>
 
-                    {/* File Upload Trigger (Gallery & Storage) */}
+                    {/* File Upload Trigger (Gallery & Storage File Picker) */}
                     <label className="p-5 border-2 border-dashed border-gray-300 hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center bg-gray-50 hover:bg-emerald-50/40 transition-colors cursor-pointer group">
                       <FaCloudUploadAlt className="text-3xl text-gray-500 group-hover:text-emerald-600 group-hover:scale-110 transition mb-2" />
                       <span className="text-xs font-bold text-gray-700 group-hover:text-emerald-800">Upload File</span>
                       <span className="text-[10px] text-gray-500 mt-0.5">Browse gallery</span>
                       <input 
                         type="file" 
-                        accept="image/png, image/jpeg, image/jpg, image/webp" 
+                        accept=".jpg,.jpeg,.png,.webp" 
                         onChange={handleImageChange} 
                         className="hidden" 
                       />
