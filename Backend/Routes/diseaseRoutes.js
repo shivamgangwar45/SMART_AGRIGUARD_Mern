@@ -48,32 +48,36 @@ JSON Schema:
 }`;
 
     let detectedData = null;
-    const workingModels = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
 
-    for (const modelName of workingModels) {
+    // Stable v1 aur v1beta endpoints ka multi-target combination
+    const targetEndpoints = [
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`
+    ];
+
+    for (const endpointUrl of targetEndpoints) {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: promptText },
-                    {
-                      inlineData: {
-                        mimeType: mimeType,
-                        data: base64Image
-                      }
+        const response = await fetch(endpointUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: promptText },
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64Image
                     }
-                  ]
-                }
-              ]
-            })
-          }
-        );
+                  }
+                ]
+              }
+            ]
+          })
+        });
 
         const result = await response.json();
 
@@ -83,19 +87,19 @@ JSON Schema:
           const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             detectedData = JSON.parse(jsonMatch[0]);
-            console.log(`✅ Live Gemini AI analysis complete using ${modelName}`);
+            console.log("✅ Live Gemini AI analysis successful via endpoint:", endpointUrl.split("?")[0]);
             break;
           }
         } else {
-          console.warn(`Model ${modelName} error:`, result.error?.message || result);
+          console.warn("Endpoint failed:", endpointUrl.split("?")[0], result.error?.message || result);
         }
       } catch (err) {
-        console.warn(`Failed calling ${modelName}:`, err.message);
+        console.warn("Fetch error:", err.message);
       }
     }
 
     if (!detectedData) {
-      console.warn("⚠️ Gemini AI calls failed. Falling back to default.");
+      console.warn("⚠️ All Gemini endpoints failed. Returning default fallback.");
       detectedData = fallbackDiagnoses[0];
     }
 
