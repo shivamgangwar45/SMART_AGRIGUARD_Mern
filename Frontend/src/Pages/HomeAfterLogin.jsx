@@ -15,7 +15,8 @@ import {
   FaInstagram,
   FaMedkit,
   FaSeedling,
-  FaFlask
+  FaFlask,
+  FaTimes
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -62,13 +63,20 @@ const diseaseTreatments = {
 const HomeAfterLogin = () => {
   const scanRef = useRef(null);
   const treatmentRef = useRef(null);
+  const videoRef = useRef(null);
   const navigate = useNavigate();
+
   const [showScanModal, setShowScanModal] = useState(false);
   const [materials, setMaterials] = useState([]);
   const [image, setImage] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [activeTreatment, setActiveTreatment] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Live Camera states
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState("");
 
   const scrollToScan = () => {
     scanRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -87,10 +95,75 @@ const HomeAfterLogin = () => {
     fetchMaterials();
   }, []);
 
+  // Cleanup camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  // Handle stream assignment to video ref once active
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [isCameraActive, cameraStream]);
+
+  const startCamera = async () => {
+    setCameraError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      setCameraStream(stream);
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error("Camera access failed:", err);
+      setCameraError("Camera permission denied or no camera device found.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraActive(false);
+    setCameraError("");
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const capturedFile = new File([blob], `leaf-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        setImage(capturedFile);
+        setPrediction(null);
+        setActiveTreatment(null);
+        stopCamera();
+      }
+    }, 'image/jpeg', 0.95);
+  };
+
   const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
-    setPrediction(null);
-    setActiveTreatment(null);
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+      setPrediction(null);
+      setActiveTreatment(null);
+      stopCamera();
+    }
   };
 
   const getTreatmentData = (detectedName) => {
@@ -178,6 +251,7 @@ const HomeAfterLogin = () => {
 
     setLoading(false);
     setShowScanModal(false);
+    stopCamera();
 
     setTimeout(() => {
       treatmentRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -188,7 +262,13 @@ const HomeAfterLogin = () => {
     setImage(null);
     setPrediction(null);
     setActiveTreatment(null);
+    stopCamera();
     setShowScanModal(true);
+  };
+
+  const handleCloseModal = () => {
+    stopCamera();
+    setShowScanModal(false);
   };
 
   const contactInfo = {
@@ -224,7 +304,7 @@ const HomeAfterLogin = () => {
           <FaBullhorn className="mt-0.5 text-stone-900 shrink-0" />
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider">New Feature</h3>
-            <p className="text-xs font-medium leading-tight">AI Treatment Plans & Organic Remedies now active!</p>
+            <p className="text-xs font-medium leading-tight">AI Treatment Plans & Real-Time Camera Detection now active!</p>
           </div>
         </motion.div>
 
@@ -281,7 +361,7 @@ const HomeAfterLogin = () => {
             AI Scan Your Plant
           </h2>
           <p className="text-center text-gray-500 max-w-xl mx-auto mb-10 text-sm md:text-base">
-            Click on the lens portal below to upload a leaf photograph for diagnostic and therapeutic analysis.
+            Click on the lens portal below to upload a leaf photograph or snap a live picture using your camera.
           </p>
 
           <div className="flex flex-col items-center justify-center mb-8">
@@ -326,7 +406,7 @@ const HomeAfterLogin = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
             {[
-              { icon: FaCamera, title: 'Quick Detection', description: 'Instant results with our computer vision models.' },
+              { icon: FaCamera, title: 'Quick Detection', description: 'Instant results with real-time camera support and computer vision models.' },
               { icon: FaRobot, title: 'AI-Powered Analysis', description: 'Deep learning inference calibrated against agricultural data.' },
               { icon: FaShieldAlt, title: 'Treatment Recommendations', description: 'Actionable organic and chemical treatments tailored to each disease.' }
             ].map((feature, index) => (
@@ -579,63 +659,142 @@ const HomeAfterLogin = () => {
         </div>
       </footer>
 
-      {/* Modal Viewport for Scan */}
+      {/* Modal Viewport for Scan (with Live Camera Support) */}
       <AnimatePresence>
         {showScanModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setShowScanModal(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={handleCloseModal}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 20 }}
-              className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border border-gray-100"
+              className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border border-gray-100 relative"
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                onClick={handleCloseModal}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition"
+              >
+                <FaTimes size={16} />
+              </button>
+
               <h3 className="text-2xl font-bold text-gray-900 mb-1">Scan Your Plant</h3>
-              <p className="text-xs text-gray-500 mb-6">Select a clear leaf image for diagnostic screening.</p>
+              <p className="text-xs text-gray-500 mb-6">Upload a leaf photograph or snap a picture live.</p>
 
-              <form onSubmit={handleSubmit} className="flex flex-col items-center">
-                <label className="w-full border-2 border-dashed border-gray-300 hover:border-emerald-500 rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center bg-gray-50 hover:bg-emerald-50/50 transition-colors mb-4">
-                  <FaCloudUploadAlt className="text-4xl text-emerald-600 mb-2" />
-                  <span className="text-xs font-semibold text-gray-600">
-                    {image ? image.name : "Click or browse leaf photo"}
-                  </span>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                </label>
+              {cameraError && (
+                <div className="bg-red-50 text-red-600 text-xs p-3 rounded-xl mb-4 border border-red-200">
+                  {cameraError}
+                </div>
+              )}
 
-                {image && (
-                  <div className="w-24 h-24 rounded-xl overflow-hidden border border-emerald-300 mb-4">
-                    <img
-                      src={URL.createObjectURL(image)}
-                      alt="Selected preview"
+              {isCameraActive ? (
+                /* Live Camera Stream View */
+                <div className="flex flex-col items-center w-full">
+                  <div className="w-full h-64 bg-black rounded-2xl overflow-hidden relative shadow-inner mb-4 flex items-center justify-center">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
                       className="w-full h-full object-cover"
                     />
+                    <div className="absolute inset-0 border-2 border-dashed border-emerald-400/60 pointer-events-none rounded-2xl m-4"></div>
                   </div>
-                )}
 
-                <div className="flex gap-3 w-full">
-                  <button
-                    type="button"
-                    onClick={() => setShowScanModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-gray-300 text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || !image}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-50"
-                  >
-                    {loading ? "Analyzing..." : "Analyze Plant"}
-                  </button>
+                  <div className="flex gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={capturePhoto}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/30"
+                    >
+                      <FaCamera /> Capture Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="py-2.5 px-4 rounded-xl border border-gray-300 text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
+                    >
+                      Close Camera
+                    </button>
+                  </div>
                 </div>
-              </form>
+              ) : (
+                /* Regular Upload and Camera Choice View */
+                <form onSubmit={handleSubmit} className="flex flex-col items-center w-full">
+                  <div className="grid grid-cols-2 gap-3 w-full mb-4">
+                    {/* Live Camera Launch Button */}
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="p-5 border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-2xl flex flex-col items-center justify-center bg-emerald-50/50 hover:bg-emerald-100/50 transition-colors group cursor-pointer"
+                    >
+                      <FaCamera className="text-3xl text-emerald-600 group-hover:scale-110 transition-transform mb-2" />
+                      <span className="text-xs font-bold text-emerald-800">Use Live Camera</span>
+                      <span className="text-[10px] text-emerald-600 mt-0.5">Take photo now</span>
+                    </button>
+
+                    {/* File Upload Trigger */}
+                    <label className="p-5 border-2 border-dashed border-gray-300 hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center bg-gray-50 hover:bg-emerald-50/40 transition-colors cursor-pointer group">
+                      <FaCloudUploadAlt className="text-3xl text-gray-500 group-hover:text-emerald-600 group-hover:scale-110 transition mb-2" />
+                      <span className="text-xs font-bold text-gray-700 group-hover:text-emerald-800">Upload File</span>
+                      <span className="text-[10px] text-gray-500 mt-0.5">Browse gallery</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="environment"
+                        onChange={handleImageChange} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
+
+                  {image && (
+                    <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-3 mb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt="Selected leaf"
+                          className="w-12 h-12 rounded-xl object-cover border border-emerald-300"
+                        />
+                        <div className="text-left">
+                          <p className="text-xs font-bold text-gray-800 truncate max-w-[170px]">{image.name}</p>
+                          <p className="text-[10px] text-emerald-700 font-semibold">Ready for diagnosis</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setImage(null)}
+                        className="text-gray-400 hover:text-red-500 p-1 rounded-full text-xs"
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="flex-1 py-2.5 rounded-xl border border-gray-300 text-xs font-bold text-gray-600 hover:bg-gray-100 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading || !image}
+                      className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition disabled:opacity-50 shadow-md shadow-emerald-600/30"
+                    >
+                      {loading ? "Analyzing..." : "Analyze Plant"}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </motion.div>
         )}

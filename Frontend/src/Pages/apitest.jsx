@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 const DetectDisease = () => {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -6,13 +6,95 @@ const DetectDisease = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
+  // Live Camera States & Ref
+  const videoRef = useRef(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [cameraError, setCameraError] = useState("");
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
       setResult(null);
+      stopCamera();
     }
+  };
+
+  // Start Live Webcam / Mobile Rear Camera
+  const startCamera = async () => {
+    setCameraError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+      setCameraStream(stream);
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error("Camera access failed:", err);
+      setCameraError("Camera permission denied or camera not accessible.");
+    }
+  };
+
+  // Attach active stream to video element
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+  }, [isCameraActive, cameraStream]);
+
+  // Turn off active stream
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setIsCameraActive(false);
+    setCameraError("");
+  };
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  // Snap image from live stream
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const capturedFile = new File(
+            [blob],
+            `leaf-capture-${Date.now()}.jpg`,
+            { type: "image/jpeg" }
+          );
+          setSelectedFile(capturedFile);
+          setPreviewUrl(URL.createObjectURL(capturedFile));
+          setResult(null);
+          stopCamera();
+        }
+      },
+      "image/jpeg",
+      0.95
+    );
   };
 
   // Live Location Capture & API Submit
@@ -22,7 +104,6 @@ const DetectDisease = () => {
     setLoading(true);
     setResult(null);
 
-    // Get User Coordinates via Browser Geolocation
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -54,7 +135,6 @@ const DetectDisease = () => {
         },
         async (error) => {
           console.warn("Location permission denied. Sending request without coordinates.");
-          // Fallback: Agar user location permission deny kar de
           sendWithoutLocation();
         }
       );
@@ -93,46 +173,103 @@ const DetectDisease = () => {
           <span style={styles.badge}>AgriGuard AI</span>
           <h1 style={styles.title}>Plant Disease Identifier</h1>
           <p style={styles.subtitle}>
-            Upload a leaf photo to instantly detect plant diseases, get treatment recommendations, and update local outbreaks.
+            Upload a leaf photo or use live camera to instantly detect plant diseases and get treatment recommendations.
           </p>
         </div>
 
-        {/* File Upload Zone */}
-        <div style={styles.uploadBox}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            id="fileInput"
-            style={{ display: "none" }}
-          />
+        {cameraError && <div style={styles.errorBanner}>{cameraError}</div>}
 
-          {previewUrl ? (
-            <div style={styles.previewContainer}>
-              <img src={previewUrl} alt="Preview" style={styles.previewImage} />
-              <label htmlFor="fileInput" style={styles.changeBtn}>
-                Change Image
-              </label>
+        {/* Live Camera Viewport */}
+        {isCameraActive ? (
+          <div style={styles.cameraBox}>
+            <div style={styles.videoWrapper}>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={styles.videoPlayer}
+              />
+              <div style={styles.cameraFrameOverlay} />
             </div>
-          ) : (
-            <label htmlFor="fileInput" style={styles.dropZone}>
-              <div style={styles.uploadIcon}>🌱</div>
-              <p style={{ margin: "10px 0 5px", fontWeight: "600", color: "#2e7d32" }}>
-                Click to upload plant photo
-              </p>
-              <span style={{ fontSize: "12px", color: "#666" }}>Supports JPG, PNG, WEBP</span>
-            </label>
-          )}
-        </div>
+            <div style={styles.cameraActions}>
+              <button
+                type="button"
+                onClick={capturePhoto}
+                style={styles.captureBtn}
+              >
+                📸 Capture Photo
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                style={styles.cancelCameraBtn}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* File Upload Zone & Camera Trigger */
+          <div style={styles.uploadBox}>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileChange}
+              id="fileInput"
+              style={{ display: "none" }}
+            />
+
+            {previewUrl ? (
+              <div style={styles.previewContainer}>
+                <img src={previewUrl} alt="Preview" style={styles.previewImage} />
+                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                  <label htmlFor="fileInput" style={styles.changeBtn}>
+                    Upload Another
+                  </label>
+                  <span style={{ color: "#aaa" }}>|</span>
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    style={styles.switchCameraBtn}
+                  >
+                    Use Live Camera
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={styles.actionGrid}>
+                {/* Upload from device */}
+                <label htmlFor="fileInput" style={styles.actionCard}>
+                  <div style={styles.uploadIcon}>🌱</div>
+                  <p style={{ margin: "10px 0 3px", fontWeight: "600", color: "#2e7d32", fontSize: "14px" }}>
+                    Upload Leaf Photo
+                  </p>
+                  <span style={{ fontSize: "11px", color: "#777" }}>Browse JPG, PNG, WEBP</span>
+                </label>
+
+                {/* Open live webcam/phone camera */}
+                <div onClick={startCamera} style={styles.actionCard}>
+                  <div style={styles.uploadIcon}>📷</div>
+                  <p style={{ margin: "10px 0 3px", fontWeight: "600", color: "#2e7d32", fontSize: "14px" }}>
+                    Use Live Camera
+                  </p>
+                  <span style={{ fontSize: "11px", color: "#777" }}>Snap real-time picture</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action Button */}
         <button
           onClick={handleIdentify}
-          disabled={loading || !selectedFile}
+          disabled={loading || !selectedFile || isCameraActive}
           style={{
             ...styles.button,
-            opacity: loading || !selectedFile ? 0.6 : 1,
-            cursor: loading || !selectedFile ? "not-allowed" : "pointer",
+            opacity: loading || !selectedFile || isCameraActive ? 0.6 : 1,
+            cursor: loading || !selectedFile || isCameraActive ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Analyzing Leaf Pattern & Location..." : "Identify Disease"}
@@ -240,6 +377,16 @@ const styles = {
     fontSize: "14px",
     margin: 0,
   },
+  errorBanner: {
+    backgroundColor: "#fef2f2",
+    color: "#dc2626",
+    padding: "10px 14px",
+    borderRadius: "8px",
+    fontSize: "12px",
+    marginBottom: "16px",
+    textAlign: "center",
+    border: "1px solid #fecaca",
+  },
   uploadBox: {
     border: "2px dashed #b7e4c7",
     borderRadius: "12px",
@@ -248,14 +395,81 @@ const styles = {
     textAlign: "center",
     marginBottom: "20px",
   },
-  dropZone: {
+  actionGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "14px",
+  },
+  actionCard: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
+    justifyContent: "center",
+    padding: "20px 10px",
+    borderRadius: "10px",
+    border: "1px solid #d8f3dc",
+    backgroundColor: "#ffffff",
     cursor: "pointer",
+    transition: "transform 0.2s, background-color 0.2s",
   },
   uploadIcon: {
-    fontSize: "40px",
+    fontSize: "34px",
+  },
+  cameraBox: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  videoWrapper: {
+    position: "relative",
+    width: "100%",
+    height: "260px",
+    backgroundColor: "#000",
+    borderRadius: "12px",
+    overflow: "hidden",
+    marginBottom: "12px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  videoPlayer: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+  },
+  cameraFrameOverlay: {
+    position: "absolute",
+    inset: "16px",
+    border: "2px dashed rgba(52, 211, 153, 0.7)",
+    borderRadius: "10px",
+    pointerEvents: "none",
+  },
+  cameraActions: {
+    display: "flex",
+    gap: "12px",
+    width: "100%",
+    justifyContent: "center",
+  },
+  captureBtn: {
+    backgroundColor: "#2e7d32",
+    color: "#ffffff",
+    border: "none",
+    padding: "10px 20px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    fontWeight: "bold",
+    cursor: "pointer",
+  },
+  cancelCameraBtn: {
+    backgroundColor: "#f3f4f6",
+    color: "#374151",
+    border: "1px solid #d1d5db",
+    padding: "10px 18px",
+    borderRadius: "8px",
+    fontSize: "13px",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
   previewContainer: {
     display: "flex",
@@ -275,6 +489,16 @@ const styles = {
     fontWeight: "bold",
     cursor: "pointer",
     textDecoration: "underline",
+  },
+  switchCameraBtn: {
+    background: "none",
+    border: "none",
+    fontSize: "13px",
+    color: "#2e7d32",
+    fontWeight: "bold",
+    cursor: "pointer",
+    textDecoration: "underline",
+    padding: 0,
   },
   button: {
     width: "100%",
