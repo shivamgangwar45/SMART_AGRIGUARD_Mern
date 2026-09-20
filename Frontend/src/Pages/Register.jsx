@@ -10,6 +10,9 @@ import { parsePhoneNumber } from "libphonenumber-js";
 import leftLeaf from "../images/p4.png";
 import rightLeaf from "../images/p4.png";
 
+// Dynamic API Base URL targeting Render backend
+const API_BASE = import.meta.env.VITE_API_URL || "https://smart-agriguard-mern.onrender.com";
+
 function Register() {
   const [formData, setFormData] = useState({
     firstName: "",
@@ -159,8 +162,14 @@ function Register() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5557/api/user/register",
-        userData
+        `${API_BASE}/api/user/register`,
+        userData,
+        {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          withCredentials: true
+        }
       );
 
       const token = response.data?.token || response.data?.accessToken;
@@ -174,7 +183,6 @@ function Register() {
         theme: "colored"
       });
 
-      // Normal landing page layout banaye rakhne ke liye '/' par redirect karein
       setTimeout(() => {
         window.location.href = "/";
       }, 800);
