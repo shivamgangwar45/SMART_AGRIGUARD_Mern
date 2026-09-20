@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 
+// Dynamic backend URL: Render backend in production, localhost in development
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://smart-agriguard-mern.onrender.com";
+
 const DetectDisease = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -116,7 +119,7 @@ const DetectDisease = () => {
           formData.append("lng", lng);
 
           try {
-            const response = await fetch("http://localhost:5557/api/disease/detect", {
+            const response = await fetch(`${API_BASE_URL}/api/disease/detect`, {
               method: "POST",
               body: formData,
             });
@@ -148,7 +151,7 @@ const DetectDisease = () => {
     formData.append("image", selectedFile);
 
     try {
-      const response = await fetch("http://localhost:5557/api/disease/detect", {
+      const response = await fetch(`${API_BASE_URL}/api/disease/detect`, {
         method: "POST",
         body: formData,
       });
