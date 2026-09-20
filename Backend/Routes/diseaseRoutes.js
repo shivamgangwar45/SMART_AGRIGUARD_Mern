@@ -48,29 +48,16 @@ JSON Schema:
 }`;
 
     let detectedData = null;
-    let availableModels = [];
 
-    // 1. Google API se directly supported models list fetch karein
-    try {
-      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      const listData = await listRes.json();
-      if (listData.models && Array.isArray(listData.models)) {
-        availableModels = listData.models
-          .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"))
-          .map(m => m.name.replace("models/", ""));
-        console.log("🔍 Supported Gemini Models on your Key:", availableModels);
-      }
-    } catch (e) {
-      console.warn("Could not list models:", e.message);
-    }
+    // Aapke logs me active vision models:
+    const activeVisionModels = [
+      "gemini-3.6-flash",
+      "gemini-flash-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-pro-latest"
+    ];
 
-    // Default backup list agar auto-list fail ho
-    if (availableModels.length === 0) {
-      availableModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-pro-001", "gemini-1.0-pro-vision-latest"];
-    }
-
-    // 2. Jo models available hain unpar sequentially run karein
-    for (const modelName of availableModels) {
+    for (const modelName of activeVisionModels) {
       try {
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
@@ -107,7 +94,7 @@ JSON Schema:
             break;
           }
         } else {
-          console.warn(`Model ${modelName} failed:`, result.error?.message || "Invalid output");
+          console.warn(`Model ${modelName} failed:`, result.error?.message || "Invalid output format");
         }
       } catch (err) {
         console.warn(`Call failed for ${modelName}:`, err.message);
@@ -115,7 +102,7 @@ JSON Schema:
     }
 
     if (!detectedData) {
-      console.warn("⚠️ All models failed. Falling back to default.");
+      console.warn("⚠️ All vision models failed. Returning default fallback.");
       detectedData = fallbackDiagnoses[0];
     }
 
