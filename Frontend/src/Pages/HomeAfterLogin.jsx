@@ -22,6 +22,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import LogingNavBar from '../components/LogingNavBar';
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://smart-agriguard-mern.onrender.com";
+
 const diseaseTreatments = {
   'Anthracnose': {
     scientific: 'Colletotrichum gloeosporioides',
@@ -85,7 +87,7 @@ const HomeAfterLogin = () => {
   useEffect(() => {
     const fetchMaterials = async () => {
       try {
-        const response = await axios.get('http://localhost:5557/materials');
+        const response = await axios.get(`${API_BASE}/materials`);
         const data = Array.isArray(response.data) ? response.data : response.data.data || [];
         setMaterials(data);
       } catch (error) {
@@ -193,7 +195,7 @@ const HomeAfterLogin = () => {
 
     let detectedDisease = null;
 
-    // 1. Try local Python ML model
+    // 1. Try local Python ML model if available
     try {
       const formData = new FormData();
       formData.append('file', image);
@@ -205,7 +207,7 @@ const HomeAfterLogin = () => {
         detectedDisease = response.data.predicted_label;
       }
     } catch {
-      // Local fallback
+      // Python model offline
     }
 
     // 2. Try Cloud API if local is offline
@@ -739,15 +741,14 @@ const HomeAfterLogin = () => {
                       <span className="text-[10px] text-emerald-600 mt-0.5">Take photo now</span>
                     </button>
 
-                    {/* File Upload Trigger */}
+                    {/* File Upload Trigger (Gallery & Storage) */}
                     <label className="p-5 border-2 border-dashed border-gray-300 hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center bg-gray-50 hover:bg-emerald-50/40 transition-colors cursor-pointer group">
                       <FaCloudUploadAlt className="text-3xl text-gray-500 group-hover:text-emerald-600 group-hover:scale-110 transition mb-2" />
                       <span className="text-xs font-bold text-gray-700 group-hover:text-emerald-800">Upload File</span>
                       <span className="text-[10px] text-gray-500 mt-0.5">Browse gallery</span>
                       <input 
                         type="file" 
-                        accept="image/*" 
-                        capture="environment"
+                        accept="image/png, image/jpeg, image/jpg, image/webp" 
                         onChange={handleImageChange} 
                         className="hidden" 
                       />
