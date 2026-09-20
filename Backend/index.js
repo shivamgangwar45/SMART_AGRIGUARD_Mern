@@ -22,38 +22,47 @@ import userRoutes from "./Routes/userRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5557;
 
-// 1. Dynamic CORS setup for Localhost & Vercel
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  process.env.FRONTEND_URL // Vercel deployment URL (e.g. https://your-app.vercel.app)
-].filter(Boolean);
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Mobile apps, curl, Postman ya allowed origins ko permit karein
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Staging/testing ke dauran block avoid karne ke liye
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  credentials: true,
-};
-
-// 2. Create HTTP Server for Socket.io
+// 1. Create HTTP Server for Socket.io
 const server = http.createServer(app);
 
-// 3. Initialize Socket.io with dynamic CORS
+// 2. Dynamic CORS setup for Vercel, Localhost & Mobile Devices
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Postman, curl, direct mobile requests ya vercel/localhost sab allow honge
+    if (
+      !origin ||
+      origin.includes("localhost") ||
+      origin.includes("vercel.app") ||
+      origin.includes("onrender.com")
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Fallback: kisi bhi frontend ko block na kare
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Origin",
+    "X-Requested-With",
+    "Content-Type",
+    "Accept",
+    "Authorization"
+  ],
+  credentials: true,
+  optionsSuccessStatus: 200 // Legacy browsers (IE11, older mobile Chrome) ke preflight fix ke liye
+};
+
+// Middlewares
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Preflight OPTIONS check handle karne ke liye
+
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+
+// 3. Initialize Socket.io with Matching Dynamic CORS
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
+      callback(null, true);
     },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -64,10 +73,8 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("⚡ Farmer connected to Real-Time Map:", socket.id);
 
-  // Jab koi farmer new report submit karega
   socket.on("new_disease_report", (reportData) => {
     console.log("📡 New Disease Reported:", reportData.disease, "in", reportData.region);
-    // Sabhi connected clients ke map par real-time broadcast bhej do
     io.emit("receive_disease_report", reportData);
   });
 
@@ -75,11 +82,6 @@ io.on("connection", (socket) => {
     console.log("❌ Farmer disconnected:", socket.id);
   });
 });
-
-// Middlewares
-app.use(cors(corsOptions));
-app.use(express.json({ limit: "25mb" }));
-app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Test route
 app.get("/", (req, res) => {
