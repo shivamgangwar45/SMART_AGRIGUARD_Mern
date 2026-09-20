@@ -1,11 +1,53 @@
-# Ignore Python virtual environments
+# Dependencies (Frontend, Backend & Subdirectories)
+node_modules/
+**/node_modules/
+Backend/node_modules/
+Frontend/node_modules/
+
+# Production Builds
+dist/
+dist-ssr/
+build/
+**/dist/
+**/build/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Python Virtual Environments
 venv/
 flask-api/venv/
+**/venv/
+env/
+.venv/
 
-# Ignore model and weight files
+# AI Model Weights & Heavy Datasets
 *.h5
+*.keras
+*.pt
+*.pth
+*.onnx
+*.pkl
 
-# Ignore Python cache files
+# Python Cache
 *.pyc
 __pycache__/
+**/__pycache__/
 
+# Logs & Temporary Files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.history/
+**/.history/
+
+# Editor Settings
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store

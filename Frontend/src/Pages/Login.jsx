@@ -32,54 +32,77 @@ const Login = () => {
     setLoading(true);
     setError('');
 
+    // Endpoints fallback array matching the confirmed user backend route
+    const endpoints = [
+      'http://localhost:5557/api/user/login',
+      'http://localhost:5557/api/auth/login',
+      'http://localhost:5557/user/login',
+      'http://localhost:5557/auth/login'
+    ];
+
     try {
-      // Update the URL to match your backend login endpoint
-      const response = await axios.post('http://localhost:5557/api/auth/login', formData);
-      
-      if (response.data.token) {
-        localStorage.setItem('user', JSON.stringify(response.data));
+      let response = null;
+      let lastErr = null;
+
+      for (const url of endpoints) {
+        try {
+          response = await axios.post(url, {
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password
+          });
+          if (response && (response.status === 200 || response.status === 201)) {
+            break;
+          }
+        } catch (err) {
+          lastErr = err;
+          if (err.response && err.response.status === 404) {
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!response) {
+        throw lastErr || new Error("Login service unreachable.");
+      }
+
+      const token = response.data?.token || response.data?.accessToken;
+      if (token) {
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(response.data.user || response.data));
         
         setUserData({
-          name: response.data.username,
-          role: response.data.role
+          name: response.data.user?.username || response.data.username || response.data.name || 'Farmer',
+          role: response.data.user?.role || response.data.role || 'farmer'
         });
 
         setShowWelcome(true);
         
-        // Redirect based on user role
+        const userRole = (response.data.user?.role || response.data.role || '').toLowerCase();
+
         setTimeout(() => {
           setShowWelcome(false);
-        switch(response.data.role) {
-          case 'admin':
-            navigate('/admin');
-            break;
+          switch(userRole) {
+            case 'admin':
+              navigate('/admin');
+              break;
             case 'manager':
               navigate('/manager-dashboard');
               break;
             case 'supplier':
               navigate('/materials');
               break;  
-          case 'farmer':
-          case 'OrganicFarmer':
-          case 'cropFarmer':
-          case 'greenhouseFarmer':
-          case 'forester':
-          case 'gardener':
-          case 'soilTester':
-          case 'agriculturalResearcher':
-            navigate('/loghome');
-            break;
-          default:
-            navigate('/loghome');
-        }
-      }, 2000);
+            default:
+              // Directs users to the standard landing homepage
+              window.location.href = '/';
+          }
+        }, 1500);
       } else {
-        setError('Login failed. Please try again.');
+        setError('Login failed: Token not received.');
       }
-      
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
-      console.error('Login error:', err);
+      console.error('Login error details:', err.response?.data || err);
+      setError(err.response?.data?.message || err.response?.data?.error || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -88,91 +111,99 @@ const Login = () => {
   return (
     <div className="relative h-screen flex items-center justify-center">
       <WelcomeOverlay show={showWelcome} userData={userData} />
+      
       {/* Background Layer */}
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: `url(${BackgroundSvg})`, // Use the imported SVG
+          backgroundImage: `url(${BackgroundSvg})`,
           backgroundSize: "cover",
-          filter: "blur(5px)", // Apply blur only to the background
-          zIndex: -1, // Ensure it stays behind all content
+          filter: "blur(5px)",
+          zIndex: -1,
         }}
       ></div>
 
       {/* Login Form */}
-      <div className="w-full max-w-xs m-auto mt-10">
-        <h1 className="text-3xl font-bold mb-6 justify-center text-green-600 align-middle flex mt-10">
-          Login
-        </h1>
+      <div className="w-full max-w-sm m-auto px-4">
         <form
-          className="rounded-3xl px-10 pt-8 pb-10 mb-6 mt-auto bg-slate-20 border-spacing-4 shadow-xl"
+          className="rounded-3xl px-8 pt-8 pb-10 bg-white shadow-2xl border border-gray-100"
           onSubmit={handleSubmit}
         >
-          <div className="mb-6">
-  <label
-    className="block text-gray-700 text-sm font-bold mb-2"
-    htmlFor="email"
-  >
-    Email
-  </label>
-  <input
-    className="shadow my-3 focus:border-green-600 focus:ring-6 appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-    id="email"
-    name="email"
-    type="email"
-    placeholder="Email"
-    value={formData.email}
-    onChange={handleChange}
-    required
-  />
-</div>
-<div className="mb-6 relative">
-  <label
-    className="block text-gray-700 text-sm font-bold mb-2"
-    htmlFor="password"
-  >
-    Password
-  </label>
-  <input
-    className="shadow focus:border-green-600 focus:ring-6 appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-    id="password"
-    name="password"
-    type={showPassword ? "text" : "password"}
-    placeholder="********"
-    value={formData.password}
-    onChange={handleChange}
-    required
-  />
-  {/* Password visibility toggle icon */}
-  <span
-    className="absolute inset-y-0 right-3 flex mt-7 items-center cursor-pointer text-gray-400 hover:text-green-600"
-    onClick={() => setShowPassword((prev) => !prev)}
-  >
-    {showPassword ? <MdVisibilityOff size={24} /> : <MdVisibility size={24} />}
-  </span>
-  {error && <p className="text-red-500 text-xs italic mt-2">{error}</p>}
-  {successMessage && (
-    <p className="text-green-500 text-xs italic mt-2">{successMessage}</p>
-  )}
-</div>
-          <div className="items-center justify-between">
-            <button
-              className="bg-green-600 hover:bg-green-900 text-white font-bold py-2 rounded-xl mx-3 px-20 focus:outline-none focus:shadow-outline"
-              type="submit"
+          <h1 className="text-3xl font-extrabold mb-6 text-center text-green-700">
+            Sign In
+          </h1>
+
+          <div className="mb-4">
+            <label
+              className="block text-gray-700 text-xs font-bold uppercase tracking-wider mb-2"
+              htmlFor="email"
             >
-              Sign In
+              Email
+            </label>
+            <input
+              className="shadow-sm border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition"
+              id="email"
+              name="email"
+              type="email"
+              placeholder="e.g. shivamgangwarbda51@gmail.com"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="mb-6 relative">
+            <label
+              className="block text-gray-700 text-xs font-bold uppercase tracking-wider mb-2"
+              htmlFor="password"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <input
+                className="shadow-sm border rounded-xl w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:border-green-600 focus:ring-1 focus:ring-green-600 transition"
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="********"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+              <span
+                className="absolute inset-y-0 right-3 flex items-center cursor-pointer text-gray-400 hover:text-green-600"
+                onClick={() => setShowPassword((prev) => !prev)}
+              >
+                {showPassword ? <MdVisibilityOff size={22} /> : <MdVisibility size={22} />}
+              </span>
+            </div>
+
+            {error && <p className="text-red-500 text-xs italic mt-2 font-medium">{error}</p>}
+            {successMessage && (
+              <p className="text-green-600 text-xs italic mt-2 font-medium">{successMessage}</p>
+            )}
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition duration-200 shadow-md shadow-green-600/30 disabled:opacity-60"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </div>
-          <div className="text-center mt-5">
+
+          <div className="text-center mt-5 flex justify-between items-center text-xs">
             <a
-              className="inline-block align-baseline mr-4 text-xs text-green-600 hover:text-green-900"
+              className="text-gray-500 hover:text-green-700 transition"
               href="#"
             >
               Forgot Password?
             </a>
             <a
               href="/register"
-              className="text-xs inline-block align-baseline text-black-500 hover:text-green-900"
+              className="text-green-700 font-bold hover:underline"
             >
               Create an Account
             </a>

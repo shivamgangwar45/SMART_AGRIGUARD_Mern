@@ -1,14 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaLeaf, FaSearch, FaMobileAlt,FaCheckCircle, FaChevronDown,FaClock } from 'react-icons/fa';
+import { 
+  FaLeaf, 
+  FaSearch, 
+  FaMobileAlt, 
+  FaCheckCircle, 
+  FaChevronDown, 
+  FaClock,
+  FaFacebookF,
+  FaTwitter,
+  FaInstagram 
+} from 'react-icons/fa';
 import { RiPlantLine } from 'react-icons/ri';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import WhatWeOffer from '../components/WhatWeOffer';
 import { FaRobot, FaChartLine, FaGraduationCap, FaPiggyBank } from "react-icons/fa6";
+
 const Home = () => {
   const [scrollY, setScrollY] = useState(0);
-  // const featuresRef = useRef(null);
   const navigate = useNavigate();
   const whatWeOfferRef = useRef(null);
 
@@ -27,20 +37,20 @@ const Home = () => {
     {
       title: "5 Early Signs of Plant Disease Every Farmer Should Know",
       excerpt: "Learn to spot the subtle indicators of plant health issues before they become major problems.",
-      date: "2023-07-15",
-      image: "https://th.bing.com/th/id/OIP.o3qRYnynMzJSlVudwbsLAQHaFE?rs=1&pid=ImgDetMain"
+      date: "2026-09-18",
+      image: "https://images.unsplash.com/photo-1592417817098-8f3d6eb22509?auto=format&fit=crop&w=600&q=80"
     },
     {
       title: "AI in Agriculture: Revolutionizing Crop Protection",
       excerpt: "Discover how artificial intelligence is changing the game for farmers worldwide.",
-      date: "2023-07-10",
-      image: "https://static.vecteezy.com/system/resources/thumbnails/032/718/079/small_2x/ai-generative-modern-robot-with-artificial-intelligence-harvest-organic-plants-in-an-urban-greenhouse-new-technologies-in-agriculture-horizontal-photo.jpg"
+      date: "2026-09-15",
+      image: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80"
     },
     {
       title: "Organic vs. Chemical Treatments: Making the Right Choice",
       excerpt: "We break down the pros and cons of different treatment approaches for your crops.",
-      date: "2023-07-05",
-      image: "https://th.bing.com/th/id/R.1fa7b43360bdadd5b2e9a49d621242a1?rik=ah0S53PGybCaRw&pid=ImgRaw&r=0"
+      date: "2026-09-12",
+      image: "https://images.pexels.com/photos/2255801/pexels-photo-2255801.jpeg?auto=compress&cs=tinysrgb&w=600"
     }
   ];
 
@@ -132,9 +142,9 @@ const Home = () => {
 
   // Contacts Section
   const contactInfo = {
-    email: "support@smartagriguard.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 AgriTech Lane, Farmville, CA 94123",
+    email: "shivamgangwarbda51@gmail.com",
+    phone: "+91 8433210134",
+    address: "Bhojipura, Bareilly, UP 243202",
     socialMedia: {
       facebook: "https://facebook.com/smartagriguard",
       twitter: "https://twitter.com/smartagriguard",
@@ -142,95 +152,86 @@ const Home = () => {
     }
   };
 
-  const newsletterSignup = {
-    title: "Stay Updated with SmartAgriGuard",
-    description: "Subscribe to our newsletter for the latest in AI-powered agriculture, crop protection tips, and exclusive offers.",
-    placeholder: "Enter your email address",
-    buttonText: "Subscribe"
-  };
-
   return (
     <div className="min-h-screen bg-white text-green-800">
       <Navbar />
-{/* Hero Section */}
-<section className="relative h-screen flex items-center justify-center overflow-hidden">
-  {/* Background Image */}
-  <div
-    className="absolute inset-0 bg-cover bg-center z-0"
-    style={{
-      backgroundImage: "url('https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')",
-      filter: 'blur(4px)',
-    }}
-  ></div>
-  
-  {/* Semi-transparent overlay */}
-  <div className="absolute inset-0 bg-black bg-opacity-50 z-10"></div>
-  
-  {/* Content */}
-  <div className="container mx-auto px-4 text-center relative z-20">
-    <motion.h1
-      initial={{ opacity: 0, y: -50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-      className="text-5xl md:text-7xl font-bold mb-6 text-white leading-tight"
-    >
-      Protect Plants with AgriGuard
-    </motion.h1>
-    <motion.p
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.2 }}
-      className="text-xl md:text-2xl mb-8 text-white"
-    >
-      AgriGuard: Advanced plant disease detection for smarter farming
-    </motion.p>
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8, delay: 0.4 }}
-      className="flex justify-center space-x-4"
-    >
-      <button
-        className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-green-700 transition duration-300"
-        onClick={handleGetStarted}
-      >
-        Get Started
-      </button>
-      <button
-        className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-green-800 transition duration-300"
-        onClick={() => navigate('/about')}
-      >
-        Learn More
-      </button>
-    </motion.div>
-    
-    {/* Key Features */}
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.6 }}
-      className="mt-12 flex justify-center space-x-8"
-    >
-      {[
-        { icon: FaCheckCircle, text: "99% Accuracy" },
-        { icon: FaLeaf, text: "50+ Disease Types" },
-        { icon: FaClock, text: "24/7 Monitoring" },
-      ].map((feature, index) => (
-        <div key={index} className="flex items-center text-white">
-          <feature.icon className="text-green-400 mr-2 text-2xl" />
-          <span className="text-lg">{feature.text}</span>
+      
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center z-0"
+          style={{
+            backgroundImage: "url('https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80')",
+            filter: 'blur(4px)',
+          }}
+        ></div>
+        
+        <div className="absolute inset-0 bg-black bg-opacity-50 z-10"></div>
+        
+        <div className="container mx-auto px-4 text-center relative z-20">
+          <motion.h1
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-5xl md:text-7xl font-bold mb-6 text-white leading-tight"
+          >
+            Protect Plants with AgriGuard
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-xl md:text-2xl mb-8 text-white"
+          >
+            AgriGuard: Advanced plant disease detection for smarter farming
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex justify-center space-x-4"
+          >
+            <button
+              className="bg-green-600 text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-green-700 transition duration-300"
+              onClick={handleGetStarted}
+            >
+              Get Started
+            </button>
+            <button
+              className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold text-lg hover:bg-white hover:text-green-800 transition duration-300"
+              onClick={() => navigate('/about')}
+            >
+              Learn More
+            </button>
+          </motion.div>
+          
+          {/* Key Features */}
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="mt-12 flex justify-center space-x-8"
+          >
+            {[
+              { icon: FaCheckCircle, text: "99% Accuracy" },
+              { icon: FaLeaf, text: "50+ Disease Types" },
+              { icon: FaClock, text: "24/7 Monitoring" },
+            ].map((feature, index) => (
+              <div key={index} className="flex items-center text-white">
+                <feature.icon className="text-green-400 mr-2 text-2xl" />
+                <span className="text-lg">{feature.text}</span>
+              </div>
+            ))}
+          </motion.div>
         </div>
-      ))}
-    </motion.div>
-  </div>
-  
-  {/* Decorative element */}
-  <div className="absolute bottom-0 left-0 w-full overflow-hidden z-10">
-    <svg className="w-full h-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
-      <path fill="rgba(255,255,255,0.1)" fillOpacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-    </svg>
-  </div>
-</section>
+        
+        <div className="absolute bottom-0 left-0 w-full overflow-hidden z-10">
+          <svg className="w-full h-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+            <path fill="rgba(255,255,255,0.1)" fillOpacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+          </svg>
+        </div>
+      </section>
+
       <WhatWeOffer ref={whatWeOfferRef} />
 
       {/* Recent Articles Section */}
@@ -246,11 +247,19 @@ const Home = () => {
                 transition={{ duration: 0.8, delay: index * 0.2 }}
                 className="bg-white rounded-lg shadow-lg overflow-hidden"
               >
-                <img src={article.image} alt={article.title} className="w-full h-48 object-cover" />
+                <img 
+                  src={article.image} 
+                  alt={article.title} 
+                  className="w-full h-48 object-cover bg-gray-100"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "https://images.pexels.com/photos/2165688/pexels-photo-2165688.jpeg?auto=compress&cs=tinysrgb&w=600";
+                  }}
+                />
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2">{article.title}</h3>
                   <p className="text-gray-600 mb-4">{article.excerpt}</p>
-                  <p className="text-sm text-gray-500">{article.date}</p>
+                  <p className="text-sm text-gray-500 font-medium">{article.date}</p>
                 </div>
               </motion.div>
             ))}
@@ -258,8 +267,8 @@ const Home = () => {
         </div>
       </section>
 
-            {/* Why Choose Us Section */}
-            <section className="py-14 bg-gradient-to-br from-white to-green-50">
+      {/* Why Choose Us Section */}
+      <section className="py-14 bg-gradient-to-br from-white to-green-50">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl font-bold text-center mb-10 text-green-800">Why Choose Us</h2>
           <div className="space-y-12 max-w-4xl mx-auto">
@@ -299,32 +308,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Features Section */}
-      {/* <section ref={featuresRef} className="py-20 bg-green-50">
-        <div className="container mx-auto px-4">
-          <h2 className="text-4xl font-bold text-center mb-12">Our Features</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { icon: FaLeaf, title: 'Accurate Detection', description: 'Identify plant diseases with high precision' },
-              { icon: FaSearch, title: 'Instant Results', description: 'Get quick analysis of plant health' },
-              { icon: FaMobileAlt, title: 'Mobile Friendly', description: 'Use AgriGuard on any device, anywhere' },
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: scrollY > 300 ? 1 : 0, y: scrollY > 300 ? 0 : 50 }}
-                transition={{ duration: 0.8, delay: index * 0.2 }}
-                className="bg-white p-6 rounded-lg shadow-lg text-center"
-              >
-                <feature.icon className="text-5xl text-green-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p>{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section> */}
-      
       {/* How It Works Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
@@ -393,10 +376,8 @@ const Home = () => {
         </div>
       </section>
 
-     
-      
       {/* Call to Action Section */}
-      <section className="py-6 bg-green-800 text-white">
+      <section className="py-12 bg-green-800 text-white">
         <div className="container mx-auto px-4 text-center">
           <motion.h2
             initial={{ opacity: 0, y: 50 }}
@@ -425,61 +406,85 @@ const Home = () => {
         </div>
       </section>
 
-          {/* Footer */}
-          <footer className="bg-green-800 text-white py-8">
-        <div className="container mx-auto px-16 -ml-36 ">
-          <div className="flex flex-wrap justify-between">
-            <div className="w-full md:w-1/4 mt-12 mb-8 md:mb-0">
-              
-              
+      {/* Footer */}
+      <footer className="bg-green-800 text-white py-10 border-t border-green-700/50">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+            {/* Brand / Social */}
+            <div>
+              <h4 className="text-2xl font-bold mb-4">AgriGuard</h4>
+              <p className="text-green-100 text-sm mb-6 leading-relaxed">
+                Empowering farmers with AI-driven plant disease detection and sustainable agricultural solutions.
+              </p>
               <div className="flex space-x-4">
-                {/* Add social media icons here */}
-                <a href="#" className="hover:text-green-300">
-                  <i className="fab fa-facebook-f"></i>
+                <a 
+                  href={contactInfo.socialMedia.facebook} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="w-9 h-9 rounded-full bg-green-700 flex items-center justify-center hover:bg-green-600 transition-colors text-white"
+                >
+                  <FaFacebookF size={15} />
                 </a>
-                <a href="#" className="hover:text-green-300">
-                  <i className="fab fa-twitter"></i>
+                <a 
+                  href={contactInfo.socialMedia.twitter} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="w-9 h-9 rounded-full bg-green-700 flex items-center justify-center hover:bg-green-600 transition-colors text-white"
+                >
+                  <FaTwitter size={15} />
                 </a>
-                <a href="#" className="hover:text-green-300">
-                  <i className="fab fa-instagram"></i>
+                <a 
+                  href={contactInfo.socialMedia.instagram} 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="w-9 h-9 rounded-full bg-green-700 flex items-center justify-center hover:bg-green-600 transition-colors text-white"
+                >
+                  <FaInstagram size={15} />
                 </a>
               </div>
             </div>
-            <div className="w-full md:w-1/4 mb-8 md:mb-0">
+
+            {/* Quick Links */}
+            <div>
               <h4 className="text-xl font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-1">
-                <li><a href="#" className="hover:text-green-300">Home</a></li>
-                <li><a href="#" className="hover:text-green-300">About Us</a></li>
-                <li><a href="#" className="hover:text-green-300">Services</a></li>
-                <li><a href="#" className="hover:text-green-300">Contact</a></li>
+              <ul className="space-y-2 text-sm text-green-100">
+                <li><a href="#" className="hover:text-white transition-colors">Home</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Services</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
             </div>
-            <div className="w-full md:w-1/4 mb-8 md:mb-0">
+
+            {/* Contact Us */}
+            <div>
               <h4 className="text-xl font-semibold mb-4">Contact Us</h4>
-              <p className="mb-2">123 AgriTech Lane, Farmville, CA 94123</p>
-              <p className="mb-2">Phone: +1 (555) 123-4567</p>
-              <p>Email: support@agriguard.com</p>
+              <p className="mb-2 text-sm text-green-100">{contactInfo.address}</p>
+              <p className="mb-2 text-sm text-green-100">Phone: {contactInfo.phone}</p>
+              <p className="text-sm text-green-100 break-words">Email: {contactInfo.email}</p>
             </div>
-            <div className="w-full md:w-1/4">
+
+            {/* Newsletter */}
+            <div>
               <h4 className="text-xl font-semibold mb-4">Newsletter</h4>
-              <p className="mb-4">Stay updated with our latest news and offers.</p>
+              <p className="mb-4 text-sm text-green-100">Stay updated with our latest news and offers.</p>
               <form className="flex">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="flex-grow px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-900"
+                  className="flex-grow px-4 py-2.5 rounded-l-lg focus:outline-none text-gray-900 text-sm bg-white"
                 />
                 <button
                   type="submit"
-                  className="bg-green-600 text-white px-4 py-2 rounded-r-lg hover:bg-green-700 transition duration-300"
+                  className="bg-green-600 text-white px-4 py-2.5 rounded-r-lg hover:bg-green-700 transition duration-300 text-sm font-semibold whitespace-nowrap"
                 >
                   Subscribe
                 </button>
               </form>
             </div>
           </div>
-          <div className="border-t border-green-700 -mb-2 ml-64 text-center">
-            <p className='text-green-300'>&copy; 2023 AgriGuard. All rights reserved.</p>
+
+          <div className="border-t border-green-700/60 pt-6 text-center">
+            <p className="text-green-300 text-sm">&copy; 2026 AgriGuard. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -487,6 +492,4 @@ const Home = () => {
   );
 };
 
-export default Home;  
-
-      
+export default Home;

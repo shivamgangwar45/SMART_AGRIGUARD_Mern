@@ -1,6 +1,7 @@
-export const PORT = 5557;
+import dotenv from "dotenv";
+dotenv.config();
 
-export const mongoDBURL =
-  "mongodb+srv://mihiran:<dbpassword>@smart-agriguard-mern-fa.zfsfc.mongodb.net/?retryWrites=true&w=majority&appName=smart-agriGuard-Mern-Farmer";
-export const JWT_SECRET = "your_jwt_secret_here";
-export const JWT_EXPIRE = "1h";
+export const PORT = process.env.PORT || 5557;
+export const MONGODB_URI = process.env.MONGODB_URI;
+export const JWT_SECRET = process.env.JWT_SECRET || "agriguard_secret_123";
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY;

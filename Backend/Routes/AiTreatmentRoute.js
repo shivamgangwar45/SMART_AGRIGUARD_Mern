@@ -1,87 +1,145 @@
 import express from "express";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const router = express.Router();
-const apiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  console.error("Error: GEMINI_API_KEY is not defined in .env");
-}
+// Helper: Target current model
+const TARGET_MODEL = "gemini-3.6-flash";
 
-const genAI = new GoogleGenerativeAI(apiKey);
-
-// Initialize Gemini model
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  systemInstruction: "Generate AI-based treatment recommendations for plant diseases in JSON format. Use simple and clear English.",
-});
-
+// 1. Treatment Plan Endpoint (Supports Hindi & English)
 router.post("/treatment", async (req, res) => {
-  const {
-    plantName,
-    detectedDisease,
-    observedSymptoms,
-    affectedParts,
-    severityLevel,
-    spreadRate,
-    weatherConditions,
-    preferredTreatmentType,
-    previousDiseaseHistory,
-  } = req.body;
-
   try {
-    // Ensure required fields are present
-    if (!plantName || !detectedDisease || !observedSymptoms) {
-      return res.status(400).json({ message: "Missing required fields" });
+    const { diseaseName, cropType, language = "en" } = req.body;
+
+    const rawApiKey = process.env.GEMINI_API_KEY;
+    if (!rawApiKey) {
+      console.error("❌ GEMINI_API_KEY missing in .env");
+      return res.status(500).json({
+        success: false,
+        message: ".env file me GEMINI_API_KEY missing hai.",
+      });
     }
 
-    const prompt = `
-     Based on the following input from a farmer, provide treatment recommendations strictly in JSON format. Ensure the output is always valid JSON without any extra text or markdown formatting.
+    const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
 
-      **Input Details:**
-      - **Plant Name:** ${plantName}
-      - **Detected Disease:** ${detectedDisease}
-      - **Observed Symptoms:** ${observedSymptoms}
-      - **Affected Parts:** ${affectedParts}
-      - **Severity Level:** ${severityLevel}
-      - **Spread Rate:** ${spreadRate}
-      - **Weather Conditions:** ${weatherConditions}
-      - **Preferred Treatment Type:** ${preferredTreatmentType}
-      - **Previous Disease History:** ${previousDiseaseHistory}
+    const languageInstruction = language === "hi"
+      ? "Respond in clear, farmer-friendly Hindi. Keep technical chemical names in English script (e.g., 'Tricyclazole 75% WP')."
+      : "Respond in clear English.";
 
-      **Expected JSON Output Format:**
+    const promptText = `Provide detailed agricultural treatment advice for ${diseaseName || "plant disease"} affecting ${cropType || "crop"}.
+${languageInstruction}
+
+Return ONLY valid JSON matching this schema with NO markdown codeblock:
+{
+  "chemicalTreatment": ["Step 1", "Step 2"],
+  "organicTreatment": ["Option 1", "Option 2"],
+  "preventionTips": ["Tip 1", "Tip 2"]
+}`;
+
+    const generateRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${TARGET_MODEL}:generateContent?key=${apiKey}`,
       {
-        "disease_explanation": "<Brief explanation of the disease>",
-        "treatment_recommendations": {
-          "organic": "<Organic treatment options (if applicable)>",
-          "chemical": "<Chemical treatment options (if applicable)>",
-          "both": "<Both organic and chemical treatment options>"
-        },
-        "preventive_measures": "<Preventive measures to avoid future outbreaks>",
-        "best_recovery_practices": "<Best practices for plant recovery>",
-        "expert_advice": "<Any additional expert advice>"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }],
+        }),
       }
-    `;
+    );
 
-    // Call Gemini AI
-    let aiResponse = await model.generateContent(prompt); // Use 'let' instead of 'const'
-    aiResponse = await aiResponse.response.text();
+    const result = await generateRes.json();
 
-    console.log("Raw AI Response:", aiResponse); // Debugging: log response
+    if (!generateRes.ok) {
+      console.error("❌ Gemini Generation Error:", result);
+      return res.status(generateRes.status).json({
+        success: false,
+        message: result.error?.message || "Treatment plan generate nahi ho paaya.",
+      });
+    }
 
-    // Clean up markdown formatting if present
-    aiResponse = aiResponse.replace(/```json|```/g, "").trim();
+    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
 
-    // Parse JSON safely
-    const parsedResponse = JSON.parse(aiResponse);
+    if (!jsonMatch) {
+      throw new Error("AI response JSON format me nahi tha.");
+    }
 
-    res.json({  treatment: parsedResponse }); // Ensure valid JSON response
+    const parsedData = JSON.parse(jsonMatch[0]);
+
+    return res.status(200).json({
+      success: true,
+      data: parsedData,
+    });
   } catch (error) {
-    console.error("Error generating AI treatment:", error);
-    res.status(500).json({ message: "Error generating treatment recommendation", error: error.message });
+    console.error("❌ Server Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to get treatment plan.",
+    });
+  }
+});
+
+// 2. AI Assistant Chat Endpoint (Search, Medicines & Translation)
+router.post("/assistant/chat", async (req, res) => {
+  try {
+    const { messages = [], userQuery } = req.body;
+
+    const rawApiKey = process.env.GEMINI_API_KEY;
+    if (!rawApiKey) {
+      return res.status(500).json({
+        success: false,
+        message: "GEMINI_API_KEY missing in .env",
+      });
+    }
+
+    const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
+
+    const systemInstruction = `You are "AgriGuard AI Assistant", an agricultural specialist.
+1. Help farmers identify plant diseases, symptoms, and recommend proper chemical/organic medicines with dosage.
+2. If the user asks in Hindi, answer in clear Hindi (keep medicine/chemical names in English script).
+3. If asked in English, reply in concise English.
+4. Translate any agricultural advice accurately between English and Hindi when asked.
+5. Provide actionable bullet points for easy understanding.`;
+
+    const contents = [
+      { role: "user", parts: [{ text: systemInstruction }] },
+      { role: "model", parts: [{ text: "Understood. I am AgriGuard AI Assistant, ready to assist." }] },
+      ...messages.map((m) => ({
+        role: m.sender === "user" ? "user" : "model",
+        parts: [{ text: m.text }],
+      })),
+      { role: "user", parts: [{ text: userQuery }] },
+    ];
+
+    const generateRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${TARGET_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents }),
+      }
+    );
+
+    const result = await generateRes.json();
+
+    if (!generateRes.ok) {
+      return res.status(generateRes.status).json({
+        success: false,
+        message: result.error?.message || "Failed to generate AI response.",
+      });
+    }
+
+    const reply = result.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I could not process that.";
+    return res.status(200).json({ success: true, reply });
+  } catch (error) {
+    console.error("❌ Chat Assistant Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server connection failed.",
+    });
   }
 });
 
