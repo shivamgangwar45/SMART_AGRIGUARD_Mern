@@ -48,36 +48,52 @@ JSON Schema:
 }`;
 
     let detectedData = null;
+    let availableModels = [];
 
-    // Stable v1 aur v1beta endpoints ka multi-target combination
-    const targetEndpoints = [
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${apiKey}`,
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`
-    ];
+    // 1. Google API se directly supported models list fetch karein
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const listData = await listRes.json();
+      if (listData.models && Array.isArray(listData.models)) {
+        availableModels = listData.models
+          .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"))
+          .map(m => m.name.replace("models/", ""));
+        console.log("🔍 Supported Gemini Models on your Key:", availableModels);
+      }
+    } catch (e) {
+      console.warn("Could not list models:", e.message);
+    }
 
-    for (const endpointUrl of targetEndpoints) {
+    // Default backup list agar auto-list fail ho
+    if (availableModels.length === 0) {
+      availableModels = ["gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-1.5-pro-001", "gemini-1.0-pro-vision-latest"];
+    }
+
+    // 2. Jo models available hain unpar sequentially run karein
+    for (const modelName of availableModels) {
       try {
-        const response = await fetch(endpointUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: promptText },
-                  {
-                    inlineData: {
-                      mimeType: mimeType,
-                      data: base64Image
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    { text: promptText },
+                    {
+                      inlineData: {
+                        mimeType: mimeType,
+                        data: base64Image
+                      }
                     }
-                  }
-                ]
-              }
-            ]
-          })
-        });
+                  ]
+                }
+              ]
+            })
+          }
+        );
 
         const result = await response.json();
 
@@ -87,19 +103,19 @@ JSON Schema:
           const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             detectedData = JSON.parse(jsonMatch[0]);
-            console.log("✅ Live Gemini AI analysis successful via endpoint:", endpointUrl.split("?")[0]);
+            console.log(`✅ Live Gemini AI analysis successful using: ${modelName}`);
             break;
           }
         } else {
-          console.warn("Endpoint failed:", endpointUrl.split("?")[0], result.error?.message || result);
+          console.warn(`Model ${modelName} failed:`, result.error?.message || "Invalid output");
         }
       } catch (err) {
-        console.warn("Fetch error:", err.message);
+        console.warn(`Call failed for ${modelName}:`, err.message);
       }
     }
 
     if (!detectedData) {
-      console.warn("⚠️ All Gemini endpoints failed. Returning default fallback.");
+      console.warn("⚠️ All models failed. Falling back to default.");
       detectedData = fallbackDiagnoses[0];
     }
 
