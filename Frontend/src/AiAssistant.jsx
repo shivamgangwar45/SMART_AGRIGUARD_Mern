@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 
+// Dynamic backend URL: Live Render backend in production, localhost in development
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://smart-agriguard-mern.onrender.com";
+
 export default function AiAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -28,8 +32,8 @@ export default function AiAssistant() {
     setLoading(true);
 
     try {
-      // ✅ Sahi backend endpoint path (/api/ai/assistant/chat)
-      const res = await fetch("http://localhost:5557/api/ai/assistant/chat", {
+      // ✅ Live backend endpoint call
+      const res = await fetch(`${API_BASE_URL}/api/ai/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
