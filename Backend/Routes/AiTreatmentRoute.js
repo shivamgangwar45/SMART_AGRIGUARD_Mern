@@ -5,28 +5,38 @@ dotenv.config();
 
 const router = express.Router();
 
-// Helper: Target current model
-const TARGET_MODEL = "gemini-3.6-flash";
+// Supported active models based on your key's quota
+const CANDIDATE_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-pro-latest"
+];
+
+// Helper to clean API Key
+const getCleanApiKey = () => {
+  const rawKey = process.env.GEMINI_API_KEY || "";
+  return rawKey.trim().replace(/^["']|["']$/g, "");
+};
 
 // 1. Treatment Plan Endpoint (Supports Hindi & English)
 router.post("/treatment", async (req, res) => {
   try {
     const { diseaseName, cropType, language = "en" } = req.body;
+    const apiKey = getCleanApiKey();
 
-    const rawApiKey = process.env.GEMINI_API_KEY;
-    if (!rawApiKey) {
+    if (!apiKey) {
       console.error("❌ GEMINI_API_KEY missing in .env");
       return res.status(500).json({
         success: false,
-        message: ".env file me GEMINI_API_KEY missing hai.",
+        message: "GEMINI_API_KEY missing in server environment.",
       });
     }
 
-    const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
-
-    const languageInstruction = language === "hi"
-      ? "Respond in clear, farmer-friendly Hindi. Keep technical chemical names in English script (e.g., 'Tricyclazole 75% WP')."
-      : "Respond in clear English.";
+    const languageInstruction =
+      language === "hi"
+        ? "Respond in clear, farmer-friendly Hindi. Keep technical chemical names in English script (e.g., 'Tricyclazole 75% WP')."
+        : "Respond in clear English.";
 
     const promptText = `Provide detailed agricultural treatment advice for ${diseaseName || "plant disease"} affecting ${cropType || "crop"}.
 ${languageInstruction}
@@ -38,36 +48,49 @@ Return ONLY valid JSON matching this schema with NO markdown codeblock:
   "preventionTips": ["Tip 1", "Tip 2"]
 }`;
 
-    const generateRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${TARGET_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-        }),
+    let parsedData = null;
+    let lastError = null;
+
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const generateRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+            }),
+          }
+        );
+
+        const result = await generateRes.json();
+
+        if (generateRes.ok && result.candidates?.[0]?.content?.parts?.[0]?.text) {
+          const rawText = result.candidates[0].content.parts[0].text;
+          const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+          const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+
+          if (jsonMatch) {
+            parsedData = JSON.parse(jsonMatch[0]);
+            console.log(`✅ Treatment plan generated via ${model}`);
+            break;
+          }
+        } else {
+          lastError = result.error?.message || "Generation error";
+          console.warn(`Treatment generation failed on ${model}:`, lastError);
+        }
+      } catch (err) {
+        lastError = err.message;
       }
-    );
-
-    const result = await generateRes.json();
-
-    if (!generateRes.ok) {
-      console.error("❌ Gemini Generation Error:", result);
-      return res.status(generateRes.status).json({
-        success: false,
-        message: result.error?.message || "Treatment plan generate nahi ho paaya.",
-      });
     }
 
-    const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const cleanJson = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      throw new Error("AI response JSON format me nahi tha.");
+    if (!parsedData) {
+      throw new Error(lastError || "Failed to generate treatment plan with all candidate models.");
     }
-
-    const parsedData = JSON.parse(jsonMatch[0]);
 
     return res.status(200).json({
       success: true,
@@ -86,16 +109,14 @@ Return ONLY valid JSON matching this schema with NO markdown codeblock:
 router.post("/assistant/chat", async (req, res) => {
   try {
     const { messages = [], userQuery } = req.body;
+    const apiKey = getCleanApiKey();
 
-    const rawApiKey = process.env.GEMINI_API_KEY;
-    if (!rawApiKey) {
+    if (!apiKey) {
       return res.status(500).json({
         success: false,
-        message: "GEMINI_API_KEY missing in .env",
+        message: "GEMINI_API_KEY missing in server environment.",
       });
     }
-
-    const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, "");
 
     const systemInstruction = `You are "AgriGuard AI Assistant", an agricultural specialist.
 1. Help farmers identify plant diseases, symptoms, and recommend proper chemical/organic medicines with dosage.
@@ -111,28 +132,48 @@ router.post("/assistant/chat", async (req, res) => {
         role: m.sender === "user" ? "user" : "model",
         parts: [{ text: m.text }],
       })),
-      { role: "user", parts: [{ text: userQuery }] },
+      { role: "user", parts: [{ text: userQuery || "" }] },
     ];
 
-    const generateRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${TARGET_MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents }),
+    let reply = null;
+    let lastError = null;
+
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const generateRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({ contents }),
+          }
+        );
+
+        const result = await generateRes.json();
+
+        if (generateRes.ok && result.candidates?.[0]?.content?.parts?.[0]?.text) {
+          reply = result.candidates[0].content.parts[0].text;
+          console.log(`✅ Assistant replied via ${model}`);
+          break;
+        } else {
+          lastError = result.error?.message || "Model reply error";
+          console.warn(`Chat failed on ${model}:`, lastError);
+        }
+      } catch (err) {
+        lastError = err.message;
       }
-    );
+    }
 
-    const result = await generateRes.json();
-
-    if (!generateRes.ok) {
-      return res.status(generateRes.status).json({
+    if (!reply) {
+      return res.status(500).json({
         success: false,
-        message: result.error?.message || "Failed to generate AI response.",
+        message: lastError || "Failed to generate AI response from available models.",
       });
     }
 
-    const reply = result.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I could not process that.";
     return res.status(200).json({ success: true, reply });
   } catch (error) {
     console.error("❌ Chat Assistant Error:", error.message);
