@@ -126,12 +126,13 @@ const DetectDisease = () => {
 
             const data = await response.json();
             if (data.success) {
-              setResult(data.data);
+              setResult(data.data || data);
             } else {
               alert("Failed to detect disease: " + data.message);
             }
           } catch (err) {
-            alert("Error connecting to server!");
+            console.error("Connection Error:", err);
+            alert("Error connecting to server! Please make sure backend is live.");
           } finally {
             setLoading(false);
           }
@@ -158,12 +159,13 @@ const DetectDisease = () => {
 
       const data = await response.json();
       if (data.success) {
-        setResult(data.data);
+        setResult(data.data || data);
       } else {
         alert("Failed to detect disease: " + data.message);
       }
     } catch (err) {
-      alert("Error connecting to server!");
+      console.error("Connection Error:", err);
+      alert("Error connecting to server! Please make sure backend is live.");
     } finally {
       setLoading(false);
     }
@@ -215,10 +217,10 @@ const DetectDisease = () => {
         ) : (
           /* File Upload Zone & Camera Trigger */
           <div style={styles.uploadBox}>
+            {/* Gallery input: capture attribute removed, explicit extensions to enforce file picker on mobile */}
             <input
               type="file"
-              accept="image/*"
-              capture="environment"
+              accept=".jpg,.jpeg,.png,.webp"
               onChange={handleFileChange}
               id="fileInput"
               style={{ display: "none" }}
@@ -243,7 +245,7 @@ const DetectDisease = () => {
               </div>
             ) : (
               <div style={styles.actionGrid}>
-                {/* Upload from device */}
+                {/* Upload from device / Gallery */}
                 <label htmlFor="fileInput" style={styles.actionCard}>
                   <div style={styles.uploadIcon}>🌱</div>
                   <p style={{ margin: "10px 0 3px", fontWeight: "600", color: "#2e7d32", fontSize: "14px" }}>
@@ -287,7 +289,7 @@ const DetectDisease = () => {
                 <h2 style={styles.diseaseTitle}>{result.diseaseName}</h2>
               </div>
               <div style={styles.confidenceBox}>
-                <span style={styles.confidenceVal}>{result.confidence || 94}%</span>
+                <span style={styles.confidenceVal}>{result.confidence || 95}%</span>
                 <span style={styles.confidenceLabel}>Confidence</span>
               </div>
             </div>
