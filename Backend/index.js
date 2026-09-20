@@ -22,13 +22,39 @@ import userRoutes from "./Routes/userRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5557;
 
-// 1. Create HTTP Server for Socket.io
+// 1. Dynamic CORS setup for Localhost & Vercel
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.FRONTEND_URL // Vercel deployment URL (e.g. https://your-app.vercel.app)
+].filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Mobile apps, curl, Postman ya allowed origins ko permit karein
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Staging/testing ke dauran block avoid karne ke liye
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: true,
+};
+
+// 2. Create HTTP Server for Socket.io
 const server = http.createServer(app);
 
-// 2. Initialize Socket.io with CORS
+// 3. Initialize Socket.io with dynamic CORS
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
@@ -51,14 +77,7 @@ io.on("connection", (socket) => {
 });
 
 // Middlewares
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
-
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
@@ -93,7 +112,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 3. Start Server with Socket.io Enabled (server.listen instead of app.listen)
+// 4. Start Server with Socket.io Enabled
 server.listen(PORT, () => {
   console.log(`🚀 Real-Time Server running on port: ${PORT}`);
 });
